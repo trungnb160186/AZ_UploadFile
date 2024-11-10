@@ -19,6 +19,7 @@ import ffmpeg = require("fluent-ffmpeg");
 
 import {
   generateFramesFromVideo,
+  generatePDF,
   removeDuplicatedFrames,
 } from "../helper/generateMetaData";
 
@@ -63,7 +64,25 @@ export async function GenerateLessonMaterials(
     );
     await removeDuplicatedFrames(frameFolder);
 
-    return { status: 200 };
+    const materialPath = await generatePDF(
+      frameFolder,
+      path.join(dir, "materials")
+    );
+    const lessonMaterialPath = `materials/${randomUUID()}.pdf`;
+    const blockBlobClient = blobServiceClient
+      .getContainerClient(container)
+      .getBlockBlobClient(lessonMaterialPath);
+
+    await blockBlobClient.uploadFile(materialPath as string);
+    fs.rm(tempDir, { recursive: true, force: true }, (err) => {
+      if (err) {
+        return {
+          status: 500,
+          body: err.message,
+        };
+      }
+    });
+    return { status: 200, body: lessonMaterialPath };
   } catch (err) {
     fs.unlinkSync(tempFilePath);
     return {

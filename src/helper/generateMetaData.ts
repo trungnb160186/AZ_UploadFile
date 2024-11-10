@@ -2,12 +2,14 @@ import * as path from "node:path";
 import * as fs from "fs";
 import * as ffmpeg from "fluent-ffmpeg";
 import { resolve } from "node:dns/promises";
+import { randomUUID } from "node:crypto";
 const ffprobe = require("ffprobe");
 const ffmpegStatic = require("ffmpeg-static");
 const ffprobeStatic = require("ffprobe-static");
 const cv = require("@techstark/opencv-js");
 const { Canvas, createCanvas, Image, ImageData, loadImage } = require("canvas");
 const { JSDOM } = require("jsdom");
+const PDFDocument = require("pdfkit");
 
 export async function generateFrame(filePath: string) {
   return new Promise((resolve, reject) => {
@@ -98,6 +100,37 @@ export async function removeDuplicatedFrames(folderPath) {
   } catch (error) {
     return error;
   }
+}
+
+export async function generatePDF(frameFolder, outPath) {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(outPath)) {
+      fs.mkdirSync(outPath);
+    }
+    const doc = new PDFDocument({ size: "A4", layout: "landscape" });
+    const outFile = path.join(outPath, `${randomUUID()}.pdf`);
+
+    const outputStream = fs
+      .createWriteStream(outFile)
+      .on("finish", () => {
+        resolve(outFile);
+      })
+      .on("error", (err) => {
+        reject(err);
+      });
+    doc.pipe(outputStream);
+    const files = fs
+      .readdirSync(frameFolder)
+      .filter((file) => path.extname(file) === ".jpg");
+
+    files.forEach((file) => {
+      doc.addPage().image(path.join(frameFolder, file), 0, 0, {
+        width: 841.89,
+        height: 595.28,
+      });
+    });
+    doc.end();
+  });
 }
 
 const areImagesMatching = async (img1Path: string, imgTemplate) => {
