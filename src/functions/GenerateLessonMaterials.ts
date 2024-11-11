@@ -57,23 +57,35 @@ export async function GenerateLessonMaterials(
       fs.mkdirSync(dir, { recursive: true });
     }
     await blobClient.downloadToFile(tempFilePath);
-
+    context.log(`Dowloaded file to: ${dir}`);
+    context.log(`Generating frames to: ${path.join(dir, "frames")}`);
     const frameFolder = await generateFramesFromVideo(
       tempFilePath,
       path.join(dir, "frames")
     );
-    await removeDuplicatedFrames(frameFolder);
-
+    context.log(`Done`);
+    context.log(`Removing duplicated frames...`);
+    const result = await removeDuplicatedFrames(frameFolder);
+    if (result === false) {
+      return {
+        status: 500,
+        body: "Failed to create material!",
+      };
+    }
+    context.log(`Done`);
+    context.log(`Generating PDF...`);
     const materialPath = await generatePDF(
       frameFolder,
       path.join(dir, "materials")
     );
+    context.log(`Done`);
     const lessonMaterialPath = `materials/${randomUUID()}.pdf`;
     const blockBlobClient = blobServiceClient
       .getContainerClient(container)
       .getBlockBlobClient(lessonMaterialPath);
 
     await blockBlobClient.uploadFile(materialPath as string);
+    context.log(`Cleaning up...`);
     fs.rm(tempDir, { recursive: true, force: true }, (err) => {
       if (err) {
         return {
@@ -82,6 +94,7 @@ export async function GenerateLessonMaterials(
         };
       }
     });
+    context.log(`Done.`);
     return { status: 200, body: lessonMaterialPath };
   } catch (err) {
     fs.unlinkSync(tempFilePath);

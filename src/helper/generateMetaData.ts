@@ -68,37 +68,39 @@ export async function generateFramesFromVideo(
 }
 
 export async function removeDuplicatedFrames(folderPath) {
-  try {
-    installDOM();
-    fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
-    fs.unlinkSync(path.join(folderPath, "frame_002.jpg"));
-    const files = fs
-      .readdirSync(folderPath)
-      .filter((file) => path.extname(file) === ".jpg");
+  return new Promise(async (resolve, reject) => {
+    try {
+      installDOM();
+      fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
+      fs.unlinkSync(path.join(folderPath, "frame_002.jpg"));
+      const files = fs
+        .readdirSync(folderPath)
+        .filter((file) => path.extname(file) === ".jpg");
 
-    const uniqueFiles = [];
-    for (let i = 0; i < files.length; i++) {
-      const filePath = path.join(folderPath, files[i]);
-      const imgTemplate = await loadImage(filePath);
-      let isUnique = true;
-      for (let j = i + 1; j < files.length; j++) {
-        const identical = await areImagesMatching(
-          path.join(folderPath, files[j]),
-          imgTemplate
-        );
-        if (!identical) {
-          isUnique = false;
-          i = j - 1;
-          break;
-        } else {
-          fs.unlinkSync(path.join(folderPath, files[j]));
+      const uniqueFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        const filePath = path.join(folderPath, files[i]);
+        const imgTemplate = await loadImage(filePath);
+        let isUnique = true;
+        for (let j = i + 1; j < files.length; j++) {
+          const identical = await areImagesMatching(
+            path.join(folderPath, files[j]),
+            imgTemplate
+          );
+          if (!identical) {
+            isUnique = false;
+            i = j - 1;
+            break;
+          } else {
+            fs.unlinkSync(path.join(folderPath, files[j]));
+          }
         }
       }
+      resolve(true);
+    } catch (error) {
+      reject(false);
     }
-    return;
-  } catch (error) {
-    return error;
-  }
+  });
 }
 
 export async function generatePDF(frameFolder, outPath) {
