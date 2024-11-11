@@ -56,8 +56,7 @@ export async function generateFramesFromVideo(
     ffmpeg()
       .input(inputVideoPath)
       .fps(0.5)
-      // .outputOption("-vf mpdecimate")
-      // .withVideoFilters("mpdecimate,setpts=N/FRAME_RATE/TB")
+      .outputOptions(["-vf", "scale=1280:720", "-qscale:v", "1"])
       .saveToFile(path.join(outputFramePath, "frame_%03d.jpg"))
       .on("end", () => {
         resolve(outputFramePath);
@@ -119,15 +118,35 @@ export async function generatePDF(frameFolder, outPath) {
         reject(err);
       });
     doc.pipe(outputStream);
+
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+
+    const imageRatio = 1280 / 720;
+    const pageRatio = pageWidth / pageHeight;
+    let width, height;
+    if (imageRatio > pageRatio) {
+      width = pageWidth * 1;
+      height = width / imageRatio;
+    } else {
+      height = pageHeight * 0.8;
+      width = height * imageRatio;
+    }
+    const x = (pageWidth - width) / 2;
+    const y = (pageHeight - height) / 2;
     const files = fs
       .readdirSync(frameFolder)
       .filter((file) => path.extname(file) === ".jpg");
 
     files.forEach((file) => {
-      doc.addPage().image(path.join(frameFolder, file), 0, 0, {
-        width: 841.89,
-        height: 595.28,
-      });
+      doc
+        .addPage()
+        .rect(0, 0, pageWidth, pageHeight)
+        .fill("#F4F4F4")
+        .image(path.join(frameFolder, file), x, y, {
+          width,
+          height,
+        });
     });
     doc.end();
   });
