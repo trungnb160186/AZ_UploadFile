@@ -177,3 +177,14 @@ function installDOM() {
   global.ImageData = ImageData;
   global.HTMLImageElement = Image;
 }
+
+export async function removeTempFolder(path) {
+  return new Promise((resolve, reject) => {
+    fs.rm(path, { recursive: true, force: true }, (err) => {
+      if (err) {
+        reject(err.message);
+      }
+      resolve("Folder was deleted");
+    });
+  });
+}

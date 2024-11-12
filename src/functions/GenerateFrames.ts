@@ -15,13 +15,11 @@ import { randomUUID } from "crypto";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "fs";
-import ffmpeg = require("fluent-ffmpeg");
 
 import {
   generateFramesFromVideo,
-  generatePDF,
-  removeDuplicatedFrames,
-} from "../helper/generateMetaData";
+  removeTempFolder,
+} from "../helper/lessonResources";
 
 export async function GenerateFrames(
   request: HttpRequest,
@@ -64,40 +62,12 @@ export async function GenerateFrames(
       path.join(dir, "frames")
     );
     context.log(`Done`);
-    // context.log(`Removing duplicated frames...`);
-    // const result = await removeDuplicatedFrames(frameFolder);
-    // if (result === false) {
-    //   return {
-    //     status: 500,
-    //     body: "Failed to create material!",
-    //   };
-    // }
-    // context.log(`Done`);
-    // context.log(`Generating PDF...`);
-    // const materialPath = await generatePDF(
-    //   frameFolder,
-    //   path.join(dir, "materials")
-    // );
-    // context.log(`Done`);
-    // const lessonMaterialPath = `materials/${randomUUID()}.pdf`;
-    // const blockBlobClient = blobServiceClient
-    //   .getContainerClient(container)
-    //   .getBlockBlobClient(lessonMaterialPath);
 
-    // await blockBlobClient.uploadFile(materialPath as string);
-    // context.log(`Cleaning up...`);
-    // fs.rm(tempDir, { recursive: true, force: true }, (err) => {
-    //   if (err) {
-    //     return {
-    //       status: 500,
-    //       body: err.message,
-    //     };
-    //   }
-    // });
-    // context.log(`Done.`);
     return { status: 200, body: frameFolder as string };
   } catch (err) {
-    fs.unlinkSync(tempFilePath);
+    await removeTempFolder(
+      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER)
+    );
     return {
       status: 500,
       body: err.message,

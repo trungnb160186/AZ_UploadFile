@@ -17,7 +17,7 @@ import * as path from "node:path";
 import * as fs from "fs";
 import ffmpeg = require("fluent-ffmpeg");
 
-import { generateFrame, generateDuration } from "../helper/generateMetaData";
+import { generateFrame, generateDuration } from "../helper/lessonResources";
 
 export async function GenerateVideoMetaData(
   request: HttpRequest,

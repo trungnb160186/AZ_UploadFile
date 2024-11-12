@@ -7,7 +7,8 @@ import {
 import {
   generatePDF,
   removeDuplicatedFrames,
-} from "../helper/generateMetaData";
+  removeTempFolder,
+} from "../helper/lessonResources";
 import {
   BlobClient,
   BlobServiceClient,
@@ -58,33 +59,20 @@ export async function GeneratePDF(
 
     await blockBlobClient.uploadFile(materialPath as string);
     context.log(`Cleaning up...`);
-    fs.rm(
-      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER),
-      { recursive: true, force: true },
-      (err) => {
-        if (err) {
-          return {
-            status: 500,
-            body: err.message,
-          };
-        }
-      }
+
+    await removeTempFolder(
+      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER)
     );
     context.log(`Done.`);
     return { status: 200, body: lessonMaterialPath };
   } catch (err) {
-    fs.rm(
-      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER),
-      { recursive: true, force: true },
-      (err) => {
-        if (err) {
-          return {
-            status: 500,
-            body: err.message,
-          };
-        }
-      }
+    await removeTempFolder(
+      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER)
     );
+    return {
+      status: 500,
+      body: err.message,
+    };
   }
 
   return { body: `Hello, ${name}!` };
