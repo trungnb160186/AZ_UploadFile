@@ -68,39 +68,35 @@ export async function generateFramesFromVideo(
 }
 
 export async function removeDuplicatedFrames(folderPath) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      installDOM();
-      fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
-      fs.unlinkSync(path.join(folderPath, "frame_002.jpg"));
-      const files = fs
-        .readdirSync(folderPath)
-        .filter((file) => path.extname(file) === ".jpg");
+  try {
+    installDOM();
+    fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
+    fs.unlinkSync(path.join(folderPath, "frame_002.jpg"));
+    const files = fs
+      .readdirSync(folderPath)
+      .filter((file) => path.extname(file) === ".jpg");
 
-      const uniqueFiles = [];
-      for (let i = 0; i < files.length; i++) {
-        const filePath = path.join(folderPath, files[i]);
-        const imgTemplate = await loadImage(filePath);
-        let isUnique = true;
-        for (let j = i + 1; j < files.length; j++) {
-          const identical = await areImagesMatching(
-            path.join(folderPath, files[j]),
-            imgTemplate
-          );
-          if (!identical) {
-            isUnique = false;
-            i = j - 1;
-            break;
-          } else {
-            fs.unlinkSync(path.join(folderPath, files[j]));
-          }
+    const uniqueFiles = [];
+    for (let i = 0; i < files.length; i++) {
+      const filePath = path.join(folderPath, files[i]);
+      const templateImage = await loadImage(filePath);
+      let isUnique = true;
+      for (let j = i + 1; j < files.length; j++) {
+        const checkImage = await loadImage(path.join(folderPath, files[j]));
+        const identical = areImagesMatching(checkImage, templateImage);
+        if (!identical) {
+          isUnique = false;
+          i = j - 1;
+          break;
+        } else {
+          fs.unlinkSync(path.join(folderPath, files[j]));
         }
       }
-      resolve(true);
-    } catch (error) {
-      reject(false);
     }
-  });
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 export async function generatePDF(frameFolder, outPath) {
@@ -154,10 +150,9 @@ export async function generatePDF(frameFolder, outPath) {
   });
 }
 
-const areImagesMatching = async (img1Path: string, imgTemplate) => {
-  const img1 = await loadImage(img1Path);
-  const checkImg = cv.imread(img1);
-  const templateImg = cv.imread(imgTemplate);
+const areImagesMatching = (checkImage, templateImage) => {
+  const checkImg = cv.imread(checkImage);
+  const templateImg = cv.imread(templateImage);
 
   let dst = new cv.Mat();
   let mask = new cv.Mat();
