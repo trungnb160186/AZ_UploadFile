@@ -1,7 +1,6 @@
 import * as path from "node:path";
 import * as fs from "fs";
 import * as ffmpeg from "fluent-ffmpeg";
-import { resolve } from "node:dns/promises";
 import { randomUUID } from "node:crypto";
 const ffprobe = require("ffprobe");
 const ffmpegStatic = require("ffmpeg-static");

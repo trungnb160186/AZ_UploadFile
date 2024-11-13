@@ -15,7 +15,6 @@ import { randomUUID } from "crypto";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "fs";
-import ffmpeg = require("fluent-ffmpeg");
 
 import { generateFrame, generateDuration } from "../helper/lessonResources";
 

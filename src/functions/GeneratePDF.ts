@@ -10,7 +10,6 @@ import {
   removeTempFolder,
 } from "../helper/lessonResources";
 import {
-  BlobClient,
   BlobServiceClient,
   StorageSharedKeyCredential,
 } from "@azure/storage-blob";
@@ -18,7 +17,6 @@ import { randomUUID } from "crypto";
 
 import * as os from "node:os";
 import * as path from "node:path";
-import * as fs from "fs";
 
 export async function GeneratePDF(
   request: HttpRequest,
