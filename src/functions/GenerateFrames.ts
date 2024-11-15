@@ -19,6 +19,8 @@ import * as fs from "fs";
 import {
   generateFramesFromVideo,
   removeTempFolder,
+  createResponse,
+  DataResponse,
 } from "../helper/lessonResources";
 
 export async function GenerateFrames(
@@ -26,7 +28,15 @@ export async function GenerateFrames(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   context.log(`Http function processed request for url "${request.url}"`);
-
+  let dataResponse: DataResponse = {
+    status: {
+      code: 200,
+      err_message: "",
+    },
+    data: {
+      resource_path: "",
+    },
+  };
   try {
     const container = request.params.container;
     const file_path = request.params.path;
@@ -55,26 +65,27 @@ export async function GenerateFrames(
       fs.mkdirSync(dir, { recursive: true });
     }
     await blobClient.downloadToFile(tempFilePath);
+
     context.log(`Dowloaded file to: ${dir}`);
     context.log(`Generating frames to: ${path.join(dir, "frames")}`);
+
     const frameFolder = await generateFramesFromVideo(
       tempFilePath,
       path.join(dir, "frames")
     );
     context.log(`Done`);
+    dataResponse = createResponse(200, "", frameFolder as string);
 
-    return { status: 200, body: frameFolder as string };
+    return { status: 200, jsonBody: dataResponse };
   } catch (err) {
-    await removeTempFolder(
-      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER)
-    );
+    context.log(`Failed: ${err.message}`);
+    await removeTempFolder(dir);
+    dataResponse = createResponse(500, err.message, "");
     return {
       status: 500,
-      body: err.message,
+      jsonBody: dataResponse,
     };
   }
-
-  return { body: `Hello, ${name}!` };
 }
 
 app.http("GenerateFrames", {

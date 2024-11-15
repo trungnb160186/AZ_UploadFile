@@ -1,12 +1,12 @@
 import * as path from "node:path";
 import * as fs from "fs";
 import * as ffmpeg from "fluent-ffmpeg";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 const ffprobe = require("ffprobe");
 const ffmpegStatic = require("ffmpeg-static");
 const ffprobeStatic = require("ffprobe-static");
 const cv = require("@techstark/opencv-js");
-const { Canvas, createCanvas, Image, ImageData, loadImage } = require("canvas");
+const { Canvas, Image, ImageData, loadImage } = require("canvas");
 const { JSDOM } = require("jsdom");
 const PDFDocument = require("pdfkit");
 
@@ -66,32 +66,25 @@ export async function generateFramesFromVideo(
   });
 }
 
-export async function removeDuplicatedFrames(folderPath) {
+export function removeDuplicatedFramesEnhance(folderPath) {
   try {
-    installDOM();
-    fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
-    fs.unlinkSync(path.join(folderPath, "frame_002.jpg"));
     const files = fs
       .readdirSync(folderPath)
       .filter((file) => path.extname(file) === ".jpg");
 
-    const uniqueFiles = [];
+    const md5Set = new Set();
     for (let i = 0; i < files.length; i++) {
       const filePath = path.join(folderPath, files[i]);
-      const templateImage = await loadImage(filePath);
-      let isUnique = true;
-      for (let j = i + 1; j < files.length; j++) {
-        const checkImage = await loadImage(path.join(folderPath, files[j]));
-        const identical = areImagesMatching(checkImage, templateImage);
-        if (!identical) {
-          isUnique = false;
-          i = j - 1;
-          break;
-        } else {
-          fs.unlinkSync(path.join(folderPath, files[j]));
-        }
+
+      const md5Image = generateMD5(filePath);
+      if (md5Set.has(md5Image)) {
+        fs.unlinkSync(path.join(folderPath, files[i]));
+      } else {
+        md5Set.add(md5Image);
       }
     }
+    fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
+
     return true;
   } catch (error) {
     return false;
@@ -149,34 +142,6 @@ export async function generatePDF(frameFolder, outPath) {
   });
 }
 
-const areImagesMatching = (checkImage, templateImage) => {
-  const checkImg = cv.imread(checkImage);
-  const templateImg = cv.imread(templateImage);
-
-  let dst = new cv.Mat();
-  let mask = new cv.Mat();
-  cv.matchTemplate(checkImg, templateImg, dst, cv.TM_CCOEFF_NORMED, mask);
-  let result = cv.minMaxLoc(dst, mask);
-  if (result.maxVal < 0) {
-    return false;
-  } else if (result.maxVal > 0.9 && result.maxVal <= 1) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
-function installDOM() {
-  const dom = new JSDOM();
-  global.document = dom.window.document;
-
-  // The rest enables DOM image and canvas and is provided by node-canvas
-  global.Image = Image;
-  global.HTMLCanvasElement = Canvas;
-  global.ImageData = ImageData;
-  global.HTMLImageElement = Image;
-}
-
 export async function removeTempFolder(path) {
   return new Promise((resolve, reject) => {
     fs.rm(path, { recursive: true, force: true }, (err) => {
@@ -186,4 +151,38 @@ export async function removeTempFolder(path) {
       resolve("Folder was deleted");
     });
   });
+}
+function generateMD5(filePath) {
+  const hash = createHash("md5");
+  const fileBuff = fs.readFileSync(filePath);
+  hash.update(fileBuff);
+  return hash.digest("hex");
+}
+
+export interface DataResponse {
+  status: {
+    code: number;
+    err_message: string;
+  };
+  data: {
+    resource_path: string;
+  };
+}
+
+export function createResponse(
+  code: number,
+  err_message: string,
+  response: string
+): DataResponse {
+  const dataResponse: DataResponse = {
+    status: {
+      code: code,
+      err_message: err_message,
+    },
+    data: {
+      resource_path: response,
+    },
+  };
+
+  return dataResponse;
 }

@@ -5,8 +5,10 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import {
+  createResponse,
+  DataResponse,
   generatePDF,
-  removeDuplicatedFrames,
+  removeDuplicatedFramesEnhance,
   removeTempFolder,
 } from "../helper/lessonResources";
 import {
@@ -15,7 +17,6 @@ import {
 } from "@azure/storage-blob";
 import { randomUUID } from "crypto";
 
-import * as os from "node:os";
 import * as path from "node:path";
 
 export async function GeneratePDF(
@@ -23,11 +24,21 @@ export async function GeneratePDF(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   context.log(`Http function processed request for url "${request.url}"`);
+
+  let dataResponse: DataResponse = {
+    status: {
+      code: 200,
+      err_message: "",
+    },
+    data: {
+      resource_path: "",
+    },
+  };
+  const container = request.params.container;
+  const framePath = request.params.path;
+  const accountName = process.env.ACC_NAME;
+  const accountkey = process.env.ACC_KEY;
   try {
-    const container = request.params.container;
-    const framePath = request.params.frame_path;
-    const accountName = process.env.ACC_NAME;
-    const accountkey = process.env.ACC_KEY;
     const sharedCredentials = new StorageSharedKeyCredential(
       accountName,
       accountkey
@@ -36,19 +47,29 @@ export async function GeneratePDF(
       `https://${accountName}.blob.core.windows.net`,
       sharedCredentials
     );
-    const result = await removeDuplicatedFrames(framePath);
+
+    const result = removeDuplicatedFramesEnhance(framePath);
     if (result === false) {
+      context.log(`Failed to handle duplicated frames`);
+      dataResponse = createResponse(
+        500,
+        "Failed to handle duplicated frames",
+        ""
+      );
+
       return {
         status: 500,
-        body: "Failed to create material!",
+        jsonBody: dataResponse,
       };
     }
+
     context.log(`Done`);
     context.log(`Generating PDF...`);
     const materialPath = await generatePDF(
       framePath,
       path.join(path.dirname(framePath), "materials")
     );
+
     context.log(`Done`);
     const lessonMaterialPath = `materials/${randomUUID()}.pdf`;
     const blockBlobClient = blobServiceClient
@@ -58,22 +79,25 @@ export async function GeneratePDF(
     await blockBlobClient.uploadFile(materialPath as string);
     context.log(`Cleaning up...`);
 
-    await removeTempFolder(
-      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER)
-    );
+    await removeTempFolder(path.dirname(framePath));
+
     context.log(`Done.`);
-    return { status: 200, body: lessonMaterialPath };
+
+    dataResponse = createResponse(200, "", lessonMaterialPath as string);
+
+    return { status: 200, jsonBody: dataResponse };
   } catch (err) {
-    await removeTempFolder(
-      path.join(os.tmpdir(), process.env.VIDEO_TEMP_FOLDER)
-    );
+    context.log(`Failed: ${err.message}`);
+
+    await removeTempFolder(path.dirname(framePath));
+
+    dataResponse = createResponse(500, err.message, "");
+
     return {
       status: 500,
-      body: err.message,
+      jsonBody: dataResponse,
     };
   }
-
-  return { body: `Hello, ${name}!` };
 }
 
 app.http("GeneratePDF", {
