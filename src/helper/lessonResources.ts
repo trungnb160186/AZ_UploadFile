@@ -5,9 +5,6 @@ import { randomUUID, createHash } from "node:crypto";
 const ffprobe = require("ffprobe");
 const ffmpegStatic = require("ffmpeg-static");
 const ffprobeStatic = require("ffprobe-static");
-const cv = require("@techstark/opencv-js");
-const { Canvas, Image, ImageData, loadImage } = require("canvas");
-const { JSDOM } = require("jsdom");
 const PDFDocument = require("pdfkit");
 
 export async function generateFrame(filePath: string) {
