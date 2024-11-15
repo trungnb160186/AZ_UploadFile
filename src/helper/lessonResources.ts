@@ -1,7 +1,9 @@
 import * as path from "node:path";
 import * as fs from "fs";
-import * as ffmpeg from "fluent-ffmpeg";
+import ffmpeg = require("fluent-ffmpeg");
 import { randomUUID, createHash } from "node:crypto";
+
+const compareImages = require("resemblejs/compareImages");
 const ffprobe = require("ffprobe");
 const ffmpegStatic = require("ffmpeg-static");
 const ffprobeStatic = require("ffprobe-static");
@@ -63,28 +65,70 @@ export async function generateFramesFromVideo(
   });
 }
 
-export function removeDuplicatedFramesEnhance(folderPath) {
+export function removeDuplicatedFramesSimple(folderPath) {
   try {
     const files = fs
       .readdirSync(folderPath)
       .filter((file) => path.extname(file) === ".jpg");
 
-    const md5Set = new Set();
+    const hashSet = new Set();
     for (let i = 0; i < files.length; i++) {
       const filePath = path.join(folderPath, files[i]);
 
-      const md5Image = generateMD5(filePath);
-      if (md5Set.has(md5Image)) {
+      const imgHash = generateImgHash(filePath);
+      if (hashSet.has(imgHash)) {
         fs.unlinkSync(path.join(folderPath, files[i]));
       } else {
-        md5Set.add(md5Image);
+        hashSet.add(imgHash);
       }
     }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function removeDuplicatedFramesAdvance(folderPath) {
+  try {
+    const files = fs
+      .readdirSync(folderPath)
+      .filter((file) => path.extname(file) === ".jpg");
+
+    for (let i = 0; i < files.length; i++) {
+      const filePathTemp = path.join(folderPath, files[i]);
+      // let templateImg = await Jimp.read(filePathTemp);
+      for (let j = i + 1; j < files.length; j++) {
+        const filePath = path.join(folderPath, files[j]);
+        // const targetImg = await Jimp.read(filePath);
+        const isMatch = await areImagesMatching(filePathTemp, filePath);
+        if (isMatch) {
+          fs.unlinkSync(filePath);
+        } else {
+          i = j - 1;
+          break;
+        }
+      }
+    }
+
     fs.unlinkSync(path.join(folderPath, "frame_001.jpg"));
 
     return true;
   } catch (error) {
     return false;
+  }
+}
+
+async function areImagesMatching(templateImg, targetImg) {
+  const data = await compareImages(
+    fs.readFileSync(templateImg),
+    fs.readFileSync(targetImg)
+  );
+
+  if (data.misMatchPercentage > 1) {
+    return false;
+  } else {
+    return true;
   }
 }
 
@@ -149,11 +193,14 @@ export async function removeTempFolder(path) {
     });
   });
 }
-function generateMD5(filePath) {
-  const hash = createHash("md5");
-  const fileBuff = fs.readFileSync(filePath);
-  hash.update(fileBuff);
-  return hash.digest("hex");
+function generateImgHash(filePath) {
+  try {
+    const image = fs.readFileSync(filePath);
+    const hash = createHash("sha1").update(image).digest("hex");
+    return hash;
+  } catch (error) {
+    throw new Error(`Error generating MD5 for ${filePath}: ${error.message}`);
+  }
 }
 
 export interface DataResponse {

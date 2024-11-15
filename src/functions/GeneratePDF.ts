@@ -8,7 +8,8 @@ import {
   createResponse,
   DataResponse,
   generatePDF,
-  removeDuplicatedFramesEnhance,
+  removeDuplicatedFramesAdvance,
+  removeDuplicatedFramesSimple,
   removeTempFolder,
 } from "../helper/lessonResources";
 import {
@@ -16,7 +17,6 @@ import {
   StorageSharedKeyCredential,
 } from "@azure/storage-blob";
 import { randomUUID } from "crypto";
-
 import * as path from "node:path";
 
 export async function GeneratePDF(
@@ -48,7 +48,7 @@ export async function GeneratePDF(
       sharedCredentials
     );
 
-    const result = removeDuplicatedFramesEnhance(framePath);
+    let result = removeDuplicatedFramesSimple(framePath);
     if (result === false) {
       context.log(`Failed to handle duplicated frames`);
       dataResponse = createResponse(
@@ -62,6 +62,8 @@ export async function GeneratePDF(
         jsonBody: dataResponse,
       };
     }
+
+    result = await removeDuplicatedFramesAdvance(framePath);
 
     context.log(`Done`);
     context.log(`Generating PDF...`);
